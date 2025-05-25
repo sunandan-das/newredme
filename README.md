@@ -17,15 +17,15 @@ This project demonstrates an end-to-end DevOps workflow that includes:
 
 ---
 
-## master repository Structure
+## Azure repository Structure
 
 ```bash
 .
 ├── src/                      # Source code of the .NET Web API
 ├── tests/                    # Unit test project
-├── azure-build.yml           # CI pipeline YAML file
-├── azure-release.yml         # CD pipeline YAML file
-└── Dockerfile                # Multi stage Dockerfile for the application
+├── azure-build.yml           # CI pipeline YAML definition
+├── azure-release.yml         # CD pipeline YAML definition
+└── Dockerfile                # Multi-stage Dockerfile for the application
 ```
 
 ---
@@ -110,7 +110,85 @@ I used the `docosoft-assignment` repository under the `docosoft-api-project` in 
 
 ---
 
-## CD Pipeline – `azure-release.yml`
+### CI Pipeline – `azure-build.yml`
+
+The CI pipeline runs on every push to `master`. It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
+
+```yaml
+trigger:
+  branches:
+    include:
+      - master  # Trigger CI pipeline when changes are pushed to master
+
+variables:
+  vmImageName: 'ubuntu-latest'
+  dockerRegistryServiceConnection: '8a597463-f084-4d63-9c64-6a540d53b1ec'
+  imageRepository: 'counterapi'
+  containerRegistry: 'docosoftcounter.azurecr.io'
+  dockerfilePath: '**/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+stages:
+- stage: Test
+  displayName: 'Test the Application'
+  jobs:
+  - job: RunTests
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+    - script: dotnet restore CounterApi.sln
+      displayName: 'Restore Dependencies'
+    - script: dotnet test CounterApi.sln --configuration Release --verbosity normal
+      displayName: 'Run Unit Tests'
+
+- stage: Build
+  displayName: 'Build the Application'
+  dependsOn: Test
+  jobs:
+  - job: BuildApp
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+    - script: dotnet build CounterApi.sln --configuration Release
+      displayName: 'Build Solution'
+
+- stage: Publish
+  displayName: 'Publish via Docker to ACR'
+  dependsOn: Build
+  jobs:
+  - job: DockerPush
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - checkout: self
+    - task: Docker@2
+      displayName: 'Build and Push Docker Image'
+      inputs:
+        command: buildAndPush
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepository)
+        dockerfile: $(dockerfilePath)
+        buildContext: '$(Build.SourcesDirectory)'
+        tags: |
+          $(tag)
+          latest
+```
+
+It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
+
+![CI Pipeline](./images/ci-pipeline.png)
+
+---
+
+### CD Pipeline – `azure-release.yml`
 
 The CD pipeline deploys the image from ACR to Azure App Service. It’s triggered either manually or automatically after a successful CI build.
 
@@ -144,12 +222,58 @@ steps:
     containers: '$(acrLoginServer)/$(imageName):$(dockerTag)'
 ```
 
-from ACR to Azure App Service. It’s triggered either manually or automatically after a successful CI build.
+It’s triggered automatically after a successful CI build.
+
+![CD Pipeline](./images/cd-pipeline.png)
+
+---
+
+### Service Connections
+
+I created two service connections in Azure DevOps:
+
+* Azure Resource Manager (`sunandan`) for App Service deployments
+* Docker registry (to ACR) using managed identity for secure image operations
+
+![Service Connections](./images/service-connections.png)
+
 ---
 
 ### Dockerfile
 
 The Dockerfile uses a multi-stage build:
+
+* Stage 1: Compiles and publishes the .NET app
+* Stage 2: Builds a clean runtime image for App Service
+
+```dockerfile
+# ---------- Build Stage ----------
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+
+WORKDIR /app
+
+# Copy solution and all source folders
+COPY CounterApi.sln ./
+COPY src/ ./src/
+COPY tests/ ./tests/
+
+# Restore dependencies
+RUN dotnet restore
+
+# Build and publish the app
+RUN dotnet publish src/CounterApi.csproj -c Release -o /app/publish
+
+# ---------- Runtime Stage ----------
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+EXPOSE 80
+
+ENTRYPOINT ["dotnet", "CounterApi.dll"]
+```
 
 * Stage 1: Compiles and publishes the .NET app
 * Stage 2: Builds a clean runtime image for App Service
@@ -168,7 +292,7 @@ The Dockerfile uses a multi-stage build:
 
 ### PR Workflow Steps
 
-1. Pushed code to `dev` branch
+1. User Pushed code to `dev` branch
 2. Created PR → `dev` to `master`
 3. CI pipeline automatically triggered:
 
@@ -177,6 +301,7 @@ The Dockerfile uses a multi-stage build:
 5. Merge to `master` → CI triggered again
 6. CD pipeline deployed image to App Service
 7. App was accessible via live URL
+
 
 
 ---
