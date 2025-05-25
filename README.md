@@ -190,7 +190,7 @@ It restores dependencies, runs tests, builds the .NET app, and creates/pushes th
 
 ### CD Pipeline – `azure-release.yml`
 
-The CD pipeline deploys the image from ACR to Azure App Service. It’s triggered either manually or automatically after a successful CI build.
+The CD pipeline deploys the image from ACR to Azure App Service. It’s triggered either automatically after a successful CI build.
 
 ```yaml
 trigger: none  # Triggers after CI pipeline succeeds
@@ -222,7 +222,7 @@ steps:
     containers: '$(acrLoginServer)/$(imageName):$(dockerTag)'
 ```
 
-It’s triggered automatically after a successful CI build.
+
 
 ![CD Pipeline](./images/cd-pipeline.png)
 
