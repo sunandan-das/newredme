@@ -110,9 +110,10 @@ I used the `docosoft-assignment` repository under the `docosoft-api-project` in 
 
 ---
 
-The CI pipeline runs on every push to `master`. It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
+CI Pipeline – azure-build.yml
 
-```yaml
+The CI pipeline runs on every push to master. It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
+
 trigger:
   branches:
     include:
@@ -178,19 +179,15 @@ stages:
         tags: |
           $(tag)
           latest
-```
 
-. It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
+It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
 
-![CI Pipeline](./images/ci-pipeline.png)
 
----
 
-### CD Pipeline – `azure-release.yml`
+CD Pipeline – azure-release.yml
 
 The CD pipeline deploys the image from ACR to Azure App Service. It’s triggered either manually or automatically after a successful CI build.
 
-```yaml
 trigger: none  # Triggers after CI pipeline succeeds
 
 resources:
@@ -218,12 +215,8 @@ steps:
     azureSubscription: 'sunandan'
     appName: '$(webAppName)'
     containers: '$(acrLoginServer)/$(imageName):$(dockerTag)'
-```
 
 from ACR to Azure App Service. It’s triggered either manually or automatically after a successful CI build.
-
-![CD Pipeline](./images/cd-pipeline.png)
-
 ---
 
 ### Service Connections
