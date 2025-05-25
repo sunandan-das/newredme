@@ -17,15 +17,15 @@ This project demonstrates an end-to-end DevOps workflow that includes:
 
 ---
 
-## Folder Structure
+## master repository Structure
 
 ```bash
 .
 ├── src/                      # Source code of the .NET Web API
 ├── tests/                    # Unit test project
-├── azure-build.yml           # CI pipeline YAML definition
-├── azure-release.yml         # CD pipeline YAML definition
-└── Dockerfile                # Multi-stage Dockerfile for the application
+├── azure-build.yml           # CI pipeline YAML file
+├── azure-release.yml         # CD pipeline YAML file
+└── Dockerfile                # Multi stage Dockerfile for the application
 ```
 
 ---
@@ -168,7 +168,6 @@ The Dockerfile uses a multi-stage build:
 6. CD pipeline deployed image to App Service
 7. App was accessible via live URL
 
-![PR Workflow](./images/pr-workflow.png)
 
 ---
 
