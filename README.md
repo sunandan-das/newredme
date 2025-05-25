@@ -110,84 +110,11 @@ I used the `docosoft-assignment` repository under the `docosoft-api-project` in 
 
 ---
 
-CI Pipeline – azure-build.yml
-
-The CI pipeline runs on every push to master. It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
-
-trigger:
-  branches:
-    include:
-      - master  # Trigger CI pipeline when changes are pushed to master
-
-variables:
-  vmImageName: 'ubuntu-latest'
-  dockerRegistryServiceConnection: '8a597463-f084-4d63-9c64-6a540d53b1ec'
-  imageRepository: 'counterapi'
-  containerRegistry: 'docosoftcounter.azurecr.io'
-  dockerfilePath: '**/Dockerfile'
-  tag: '$(Build.BuildId)'
-
-stages:
-- stage: Test
-  displayName: 'Test the Application'
-  jobs:
-  - job: RunTests
-    pool:
-      vmImage: $(vmImageName)
-    steps:
-    - task: UseDotNet@2
-      inputs:
-        packageType: 'sdk'
-        version: '8.0.x'
-    - script: dotnet restore CounterApi.sln
-      displayName: 'Restore Dependencies'
-    - script: dotnet test CounterApi.sln --configuration Release --verbosity normal
-      displayName: 'Run Unit Tests'
-
-- stage: Build
-  displayName: 'Build the Application'
-  dependsOn: Test
-  jobs:
-  - job: BuildApp
-    pool:
-      vmImage: $(vmImageName)
-    steps:
-    - task: UseDotNet@2
-      inputs:
-        packageType: 'sdk'
-        version: '8.0.x'
-    - script: dotnet build CounterApi.sln --configuration Release
-      displayName: 'Build Solution'
-
-- stage: Publish
-  displayName: 'Publish via Docker to ACR'
-  dependsOn: Build
-  jobs:
-  - job: DockerPush
-    pool:
-      vmImage: $(vmImageName)
-    steps:
-    - checkout: self
-    - task: Docker@2
-      displayName: 'Build and Push Docker Image'
-      inputs:
-        command: buildAndPush
-        containerRegistry: $(dockerRegistryServiceConnection)
-        repository: $(imageRepository)
-        dockerfile: $(dockerfilePath)
-        buildContext: '$(Build.SourcesDirectory)'
-        tags: |
-          $(tag)
-          latest
-
-It restores dependencies, runs tests, builds the .NET app, and creates/pushes the Docker image to ACR using a multi-stage Dockerfile.
-
-
-
-CD Pipeline – azure-release.yml
+## CD Pipeline – `azure-release.yml`
 
 The CD pipeline deploys the image from ACR to Azure App Service. It’s triggered either manually or automatically after a successful CI build.
 
+```yaml
 trigger: none  # Triggers after CI pipeline succeeds
 
 resources:
@@ -215,19 +142,9 @@ steps:
     azureSubscription: 'sunandan'
     appName: '$(webAppName)'
     containers: '$(acrLoginServer)/$(imageName):$(dockerTag)'
+```
 
 from ACR to Azure App Service. It’s triggered either manually or automatically after a successful CI build.
----
-
-### Service Connections
-
-I created two service connections in Azure DevOps:
-
-* Azure Resource Manager (`sunandan`) for App Service deployments
-* Docker registry (to ACR) using managed identity for secure image operations
-
-![Service Connections](./images/service-connections.png)
-
 ---
 
 ### Dockerfile
